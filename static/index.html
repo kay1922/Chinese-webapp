@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>HSK1 Chinese</title>
+  <style>
+    :root {
+      --red:          #c62828;
+      --red-light:    #ffebee;
+      --orange:       #e65100;
+      --orange-light: #fff3e0;
+      --green:        #2e7d32;
+      --green-light:  #e8f5e9;
+      --blue:         #1565c0;
+      --bg:           #f0f0f0;
+      --card:         #ffffff;
+      --text:         #1a1a1a;
+      --muted:        #757575;
+      --border:       #e0e0e0;
+      --shadow:       0 2px 12px rgba(0,0,0,0.10);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html { height: 100%; }
+    body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg); color: var(--text); overflow: hidden;
+    }
+
+    /* ── Layout ── */
+    #app {
+      height: 100%; display: flex; flex-direction: column;
+      padding-bottom: calc(58px + env(safe-area-inset-bottom));
+    }
+    #app.no-tabs { padding-bottom: 0; }
+
+    .screen { display: none; flex: 1; overflow-y: auto; flex-direction: column; padding: 16px 16px 8px; }
+    .screen.active { display: flex; }
+
+    /* ── Tab bar ── */
+    .tab-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: calc(58px + env(safe-area-inset-bottom));
+      padding-bottom: env(safe-area-inset-bottom);
+      background: var(--card); border-top: 1px solid var(--border);
+      display: flex; z-index: 100;
+    }
+    .tab-bar.hidden { display: none; }
+    .tab-btn {
+      flex: 1; border: none; background: none;
+      font-size: 10px; color: var(--muted);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+      cursor: pointer; transition: color .15s; padding: 6px 0;
+    }
+    .tab-btn .tab-icon { font-size: 24px; line-height: 1; }
+    .tab-btn.active { color: var(--red); }
+
+    /* ── Cards ── */
+    .card { background: var(--card); border-radius: 20px; box-shadow: var(--shadow); padding: 24px; }
+
+    /* ── Buttons ── */
+    .btn {
+      border: none; border-radius: 14px; padding: 15px 20px;
+      font-size: 16px; font-weight: 600; cursor: pointer;
+      transition: transform .1s; width: 100%;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: .4; pointer-events: none; }
+    .btn-primary   { background: var(--red);   color: #fff; }
+    .btn-secondary { background: #ebebeb;       color: var(--text); }
+    .btn-outline   { background: transparent;   border: 2px solid var(--border); color: var(--text); }
+    .btn-forgot    { background: var(--red-light);    color: var(--red);    font-size: 17px; }
+    .btn-hard      { background: var(--orange-light); color: var(--orange); font-size: 17px; }
+    .btn-easy      { background: var(--green-light);  color: var(--green);  font-size: 17px; }
+
+    /* ── User list buttons ── */
+    .user-btn {
+      border: 2px solid var(--border); border-radius: 16px; padding: 16px 20px;
+      font-size: 17px; font-weight: 600; background: var(--card);
+      cursor: pointer; transition: all .15s; text-align: left;
+      display: flex; align-items: center; gap: 12px; color: var(--text);
+    }
+    .user-btn:active { transform: scale(0.98); background: #f5f5f5; }
+
+    /* ── Chinese display ── */
+    .hanzi  { font-size: 76px; line-height: 1.1; text-align: center; }
+    .pinyin { font-size: 22px; color: var(--red); text-align: center; font-style: italic; }
+    .meaning { font-size: 20px; text-align: center; color: var(--muted); }
+
+    /* ── Audio button ── */
+    .audio-btn {
+      width: 52px; height: 52px; border-radius: 50%; border: none;
+      background: var(--red-light); color: var(--red); font-size: 24px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background .15s; flex-shrink: 0;
+    }
+    .audio-btn:active { background: #ffcdd2; }
+    .audio-btn.playing { animation: pulse .7s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+
+    /* ── Progress bar ── */
+    .prog-wrap { height: 7px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .prog-fill  { height: 100%; border-radius: 4px; transition: width .5s; background: var(--red); }
+
+    /* ── Quiz choices ── */
+    .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .choice-btn {
+      border: 2px solid var(--border); border-radius: 14px;
+      padding: 14px 10px; font-size: 15px; background: var(--card);
+      cursor: pointer; transition: all .15s; text-align: center;
+      min-height: 64px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 3px; line-height: 1.3;
+    }
+    .choice-btn:active { transform: scale(0.97); }
+    .choice-btn.correct { border-color: var(--green); background: var(--green-light); color: var(--green); font-weight: 700; }
+    .choice-btn.wrong   { border-color: var(--red);   background: var(--red-light);   color: var(--red); }
+    .choice-pinyin { font-size: 12px; color: var(--red); font-style: italic; }
+    .choice-btn.correct .choice-pinyin { color: var(--green); }
+    .choice-btn.wrong   .choice-pinyin { color: var(--red); }
+
+    /* ── Match ── */
+    .match-cols { display: flex; gap: 12px; }
+    .match-col  { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+    .match-tile {
+      border: 2px solid var(--border); border-radius: 14px;
+      padding: 14px 8px; background: var(--card); cursor: pointer;
+      text-align: center; min-height: 60px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 2px; line-height: 1.25; transition: background .15s, border-color .15s, opacity .2s;
+    }
+    .match-tile:active { transform: scale(0.97); }
+    .match-tile.zh { font-size: 30px; }
+    .match-tile.en { font-size: 16px; }
+    .match-tile .mt-pinyin  { font-size: 17px; color: var(--red); font-style: italic; font-weight: 600; }
+    .match-tile .mt-english { font-size: 12px; color: var(--muted); }
+    .match-tile.matched .mt-pinyin { color: var(--green); }
+    .match-tile.sel     { border-color: var(--blue); background: #e3f2fd; }
+    .match-tile.matched { border-color: var(--green); background: var(--green-light); color: var(--green); opacity: .5; pointer-events: none; }
+    .match-tile.bad     { border-color: var(--red); background: var(--red-light); animation: shake .3s; }
+    @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
+    /* ── Stats ── */
+    .stat-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 13px 0; border-bottom: 1px solid var(--border);
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { font-size: 15px; color: var(--muted); }
+    .stat-value { font-size: 20px; font-weight: 700; }
+
+    /* ── Utilities ── */
+    .flex    { display: flex; }
+    .flex-col { flex-direction: column; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .gap-8  { gap: 8px; }
+    .gap-10 { gap: 10px; }
+    .gap-12 { gap: 12px; }
+    .mt-8   { margin-top: 8px; }
+    .mt-12  { margin-top: 12px; }
+    .mt-16  { margin-top: 16px; }
+    .text-center { text-align: center; }
+    .text-muted  { color: var(--muted); font-size: 14px; }
+    .section-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin-bottom: 10px; }
+    .back-btn { background: none; border: none; font-size: 28px; cursor: pointer; padding: 4px; line-height: 1; color: var(--text); }
+
+    /* ── Write canvas ── */
+    .canvas-wrap {
+      width: 100%; max-width: 340px; margin: 0 auto;
+      position: relative; aspect-ratio: 1;
+    }
+    #write-canvas {
+      width: 100%; height: 100%; display: block;
+      border-radius: 14px; touch-action: none; cursor: crosshair;
+    }
+    .canvas-overlay {
+      position: absolute; inset: 0; display: none;
+      align-items: center; justify-content: center;
+      font-size: 160px; line-height: 1;
+      color: rgba(198,40,40,0.28); pointer-events: none;
+      border-radius: 14px;
+    }
+    .canvas-overlay.visible { display: flex; }
+
+    /* ── Leaderboard ── */
+    .lb-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 12px; border-radius: 12px; margin-bottom: 4px;
+    }
+    .lb-row.me { background: var(--red-light); }
+    .lb-rank { font-size: 20px; width: 28px; text-align: center; flex-shrink: 0; }
+    .lb-name { flex: 1; font-weight: 600; font-size: 15px; }
+    .lb-meta { font-size: 13px; color: var(--muted); text-align: right; line-height: 1.5; }
+  </style>
+</head>
+<body>
+<div id="app" class="no-tabs">
+
+  <!-- ══ USER PICKER ══════════════════════════════════════════════════════════ -->
+  <div id="screen-users" class="screen active" style="justify-content:center;padding:32px 20px">
+    <div style="text-align:center;margin-bottom:32px">
+      <div style="font-size:52px">🇨🇳</div>
+      <h1 style="font-size:28px;font-weight:800;margin-top:8px">HSK1 Chinese</h1>
+      <p class="text-muted" style="margin-top:4px">Who's learning today?</p>
+    </div>
+
+    <div id="user-list" class="flex flex-col gap-10"></div>
+
+    <div id="new-user-form" class="flex flex-col gap-10 mt-16" style="display:none!important">
+      <input id="name-input" type="text" placeholder="Your name…"
+             style="border:2px solid var(--border);border-radius:14px;padding:16px;font-size:18px;width:100%;outline:none;text-align:center"
+             maxlength="24" oninput="this.style.borderColor='var(--red)'">
+      <button class="btn btn-primary" onclick="createUser()">Start Learning →</button>
+      <button class="btn btn-outline" onclick="hideNewUserForm()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ══ HOME ════════════════════════════════════════════════════════════════ -->
+  <div id="screen-home" class="screen">
+    <div style="text-align:center;padding:16px 0 8px;position:relative">
+      <div style="font-size:36px">🇨🇳</div>
+      <h1 style="font-size:24px;font-weight:800;margin-top:4px">HSK1 Chinese</h1>
+      <p class="text-muted" id="home-username" style="margin-top:2px"></p>
+      <button onclick="logout()"
+              style="position:absolute;top:0;right:0;background:none;border:none;
+                     color:var(--muted);font-size:13px;cursor:pointer;padding:8px;
+                     display:flex;align-items:center;gap:4px">
+        ↩ Log out
+      </button>
+    </div>
+
+    <div class="card mt-12">
+      <div class="flex justify-between items-center" style="margin-bottom:10px">
+        <span class="section-label" style="margin:0">Your Progress</span>
+        <span style="font-weight:700;font-size:15px" id="home-fraction">—/150</span>
+      </div>
+      <div class="prog-wrap"><div class="prog-fill" id="home-prog" style="width:0%"></div></div>
+      <div class="flex justify-between mt-8">
+        <span class="text-muted">Seen: <b id="home-seen">0</b></span>
+        <span class="text-muted" id="home-due"></span>
+        <span class="text-muted">🔥 <b id="home-streak">0</b> day streak</span>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-10 mt-16">
+      <button class="btn btn-primary" onclick="startStudy()" style="font-size:18px;padding:18px">
+        📚 Study New Words
+      </button>
+      <button class="btn btn-secondary" onclick="startQuiz()" style="font-size:18px;padding:18px">
+        🎯 Quiz Yourself
+      </button>
+      <button class="btn btn-secondary" onclick="startMatch()" style="font-size:18px;padding:18px">
+        🔗 Match Pairs
+      </button>
+      <button class="btn btn-outline" onclick="startWrite()" style="font-size:18px;padding:18px">
+        ✏️ Practice Writing
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ STUDY ════════════════════════════════════════════════════════════════ -->
+  <div id="screen-study" class="screen">
+    <div class="flex justify-between items-center" style="margin-bottom:12px">
+      <button class="back-btn" onclick="showHome()">‹</button>
+      <span class="text-muted" id="study-counter"></span>
+      <div style="width:36px"></div>
+    </div>
+
+    <div class="card flex flex-col items-center" style="gap:14px;padding:32px 24px">
+      <div class="hanzi" id="study-char">—</div>
+      <div class="pinyin" id="study-pinyin"></div>
+      <button class="audio-btn" id="study-audio" onclick="playAudio(studyWord.word_id,'study-audio')">🔊</button>
+      <div class="meaning" id="study-meaning" style="display:none"></div>
+    </div>
+
+    <div id="study-pre" class="flex flex-col gap-8 mt-16">
+      <button class="btn btn-primary" onclick="reveal()">👁 Reveal Meaning</button>
+      <div class="flex gap-8">
+        <button class="btn btn-outline" style="flex:1" onclick="skipStudy()">⏭ Skip</button>
+        <button class="btn btn-outline" style="flex:1" onclick="showHome()">End</button>
+      </div>
+    </div>
+
+    <div id="study-post" class="flex flex-col gap-8 mt-16" style="display:none!important">
+      <p class="text-center text-muted" style="margin-bottom:2px">Did you know it?</p>
+      <button class="btn btn-forgot" onclick="rate(0)">😰 Forgot</button>
+      <button class="btn btn-hard"   onclick="rate(1)">😐 Hard</button>
+      <button class="btn btn-easy"   onclick="rate(2)">😊 Easy</button>
+      <button class="btn btn-outline" onclick="showHome()">End session</button>
+    </div>
+  </div>
+
+  <!-- ══ QUIZ ═════════════════════════════════════════════════════════════════ -->
+  <div id="screen-quiz" class="screen">
+    <div class="flex justify-between items-center" style="margin-bottom:12px">
+      <button class="back-btn" onclick="showHome()">‹</button>
+      <span class="text-muted" id="quiz-score">✅ 0 &nbsp; ❌ 0</span>
+      <div style="width:36px"></div>
+    </div>
+
+    <div class="card flex flex-col items-center" style="gap:10px;padding:28px 20px">
+      <div id="quiz-question" style="font-size:52px;line-height:1.2;text-align:center"></div>
+      <div class="pinyin" id="quiz-pinyin"></div>
+      <button class="audio-btn" id="quiz-audio" onclick="playAudio(quizWord.word_id,'quiz-audio')" style="display:none">🔊</button>
+    </div>
+
+    <div class="choices mt-12" id="quiz-choices"></div>
+
+    <div class="card mt-12" id="quiz-feedback" style="display:none">
+      <div id="quiz-verdict" style="font-size:19px;font-weight:700;text-align:center"></div>
+      <div class="flex flex-col items-center mt-8" style="gap:4px">
+        <div style="font-size:38px;line-height:1.2" id="fb-char"></div>
+        <div class="pinyin" id="fb-pinyin" style="font-size:17px"></div>
+        <div class="meaning" id="fb-meaning" style="font-size:16px"></div>
+        <button class="audio-btn mt-8" id="fb-audio"
+                onclick="playAudio(quizWord.word_id, 'fb-audio')">🔊</button>
+      </div>
+    </div>
+
+    <button class="btn btn-primary mt-12" id="next-btn" onclick="nextQuiz()" style="display:none">
+      ➡️ Next Question
+    </button>
+  </div>
+
+  <!-- ══ WRITE ════════════════════════════════════════════════════════════════ -->
+  <div id="screen-write" class="screen">
+    <div class="flex justify-between items-center" style="margin-bottom:12px">
+      <button class="back-btn" onclick="showHome()">‹</button>
+      <span class="text-muted" id="write-counter"></span>
+      <div style="width:36px"></div>
+    </div>
+
+    <div class="card flex flex-col items-center" style="gap:6px;padding:18px 16px">
+      <p class="text-muted" style="font-size:12px;text-transform:uppercase;letter-spacing:.6px">Write the character for</p>
+      <div style="font-size:24px;font-weight:700;text-align:center" id="write-prompt"></div>
+      <div class="pinyin" id="write-pinyin" style="font-size:18px"></div>
+    </div>
+
+    <div class="canvas-wrap mt-12">
+      <canvas id="write-canvas"></canvas>
+      <div class="canvas-overlay" id="write-overlay"></div>
+    </div>
+
+    <div class="flex gap-8 mt-10">
+      <button class="btn btn-outline" style="flex:1" onclick="clearWriteCanvas()">✕ Clear</button>
+      <button class="btn btn-secondary" id="write-reveal-btn" style="flex:1" onclick="revealChar()">👁 Reveal</button>
+    </div>
+
+    <div id="write-pre" class="mt-10 text-center text-muted" style="font-size:14px;padding:4px 0">
+      Draw the character above, then tap Reveal
+    </div>
+
+    <div id="write-post" class="flex flex-col gap-8 mt-8" style="display:none!important">
+      <p class="text-center text-muted" style="margin-bottom:2px">How close were you?</p>
+      <button class="btn btn-forgot" onclick="rateWrite(0)">😰 Forgot</button>
+      <button class="btn btn-hard"   onclick="rateWrite(1)">😐 Close</button>
+      <button class="btn btn-easy"   onclick="rateWrite(2)">😊 Got it</button>
+    </div>
+  </div>
+
+  <!-- ══ MATCH ════════════════════════════════════════════════════════════════ -->
+  <div id="screen-match" class="screen">
+    <div class="flex justify-between items-center" style="margin-bottom:12px">
+      <button class="back-btn" onclick="showHome()">‹</button>
+      <span class="text-muted" id="match-counter"></span>
+      <div style="width:36px"></div>
+    </div>
+
+    <p class="text-center text-muted" style="font-size:14px;margin-bottom:12px">
+      Tap a character, then its pinyin
+    </p>
+
+    <div class="match-cols" id="match-cols">
+      <div class="match-col" id="match-left"></div>
+      <div class="match-col" id="match-right"></div>
+    </div>
+
+    <div id="match-done" class="card mt-16 text-center" style="display:none">
+      <div style="font-size:44px">🎉</div>
+      <div style="font-weight:700;font-size:18px;margin-top:6px">Round complete!</div>
+      <div class="text-muted mt-8" id="match-summary"></div>
+      <button class="btn btn-primary mt-12" onclick="startMatch()">▶️ Next Round</button>
+      <button class="btn btn-outline mt-8" onclick="showHome()">End</button>
+    </div>
+  </div>
+
+  <!-- ══ STATS ════════════════════════════════════════════════════════════════ -->
+  <div id="screen-stats" class="screen">
+    <h2 style="font-size:22px;font-weight:800;margin-bottom:14px">📊 Statistics</h2>
+
+    <div class="card">
+      <div class="section-label">Vocabulary</div>
+      <div class="flex justify-between" style="margin-bottom:4px;font-size:14px">
+        <span>Learned (answered ≥2×)</span><b id="s-learned">—</b>
+      </div>
+      <div class="prog-wrap"><div class="prog-fill" id="s-learned-bar" style="width:0%"></div></div>
+      <div class="flex justify-between mt-12" style="margin-bottom:4px;font-size:14px">
+        <span>Seen at least once</span><b id="s-seen">—</b>
+      </div>
+      <div class="prog-wrap"><div class="prog-fill" id="s-seen-bar" style="width:0%;background:var(--blue)"></div></div>
+    </div>
+
+    <div class="card mt-12">
+      <div class="section-label">Performance</div>
+      <div class="stat-row"><span class="stat-label">Accuracy</span><span class="stat-value" id="s-acc">—</span></div>
+      <div class="stat-row"><span class="stat-label">Total answers</span><span class="stat-value" id="s-total">—</span></div>
+      <div class="stat-row"><span class="stat-label">Daily streak</span><span class="stat-value" id="s-streak">—</span></div>
+      <div class="stat-row"><span class="stat-label">Due for review</span><span class="stat-value" id="s-due">—</span></div>
+    </div>
+
+    <div class="card mt-12" id="leaderboard-card">
+      <div class="section-label">🏆 Leaderboard</div>
+      <div id="leaderboard-list"></div>
+    </div>
+
+    <button class="btn btn-outline mt-16"
+            style="color:var(--red);border-color:var(--red)"
+            onclick="confirmReset()">🔄 Reset My Progress</button>
+
+    <button class="btn btn-outline mt-8" onclick="switchUser()">👤 Switch User</button>
+
+    <div style="margin-top:32px;padding-top:16px;border-top:1px solid var(--border)">
+      <p class="text-muted text-center" style="margin-bottom:10px;font-size:13px">Danger zone</p>
+      <button class="btn btn-outline" id="delete-btn"
+              style="color:var(--muted);border-color:var(--border)"
+              onclick="deleteStep1()">🗑 Delete Account</button>
+      <div id="delete-confirm" style="display:none;margin-top:8px">
+        <p class="text-center" style="font-size:14px;color:var(--red);margin-bottom:8px">
+          ⚠️ This permanently deletes <b id="delete-name">your</b> account and all progress.
+        </p>
+        <div class="flex gap-8">
+          <button class="btn btn-outline" style="flex:1" onclick="deleteCancel()">Cancel</button>
+          <button class="btn" style="flex:1;background:var(--red);color:#fff"
+                  onclick="deleteConfirm()">Delete forever</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ TAB BAR ══ -->
+<nav class="tab-bar hidden" id="tab-bar">
+  <button class="tab-btn active" id="tab-home"  onclick="showHome()">
+    <span class="tab-icon">🏠</span>Home
+  </button>
+  <button class="tab-btn" id="tab-study" onclick="startStudy()">
+    <span class="tab-icon">📚</span>Study
+  </button>
+  <button class="tab-btn" id="tab-quiz"  onclick="startQuiz()">
+    <span class="tab-icon">🎯</span>Quiz
+  </button>
+  <button class="tab-btn" id="tab-match" onclick="startMatch()">
+    <span class="tab-icon">🔗</span>Match
+  </button>
+  <button class="tab-btn" id="tab-write" onclick="startWrite()">
+    <span class="tab-icon">✏️</span>Write
+  </button>
+  <button class="tab-btn" id="tab-stats" onclick="showStats()">
+    <span class="tab-icon">📊</span>Stats
+  </button>
+</nav>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let studyWord = null;
+let quizWord  = null;
+let qCorrect  = 0, qWrong = 0;
+let audioEl   = null;
+
+// ── API ──────────────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const r = await fetch(path, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!r.ok) {
+    const txt = await r.text();
+    throw new Error(txt);
+  }
+  return r.json();
+}
+
+// ── Audio ────────────────────────────────────────────────────────────────────
+function playAudio(wordId, btnId) {
+  if (audioEl) { audioEl.pause(); audioEl = null; }
+  document.querySelectorAll('.audio-btn').forEach(b => b.classList.remove('playing'));
+  const btn = document.getElementById(btnId);
+  audioEl = new Audio(`/api/audio/${wordId}`);
+  if (btn) btn.classList.add('playing');
+  audioEl.play().catch(() => {});
+  audioEl.onended = () => { if (btn) btn.classList.remove('playing'); audioEl = null; };
+}
+
+// ── Screen helpers ────────────────────────────────────────────────────────────
+function setTab(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  const t = document.getElementById('tab-' + id);
+  if (t) t.classList.add('active');
+}
+function show(id) { document.getElementById(id).style.removeProperty('display'); }
+function hide(id) { document.getElementById(id).style.display = 'none'; }
+
+// ── User picker ───────────────────────────────────────────────────────────────
+async function loadUserPicker() {
+  document.getElementById('app').classList.add('no-tabs');
+  document.getElementById('tab-bar').classList.add('hidden');
+  hide('new-user-form');
+  show('user-list');
+  document.getElementById('name-input').value = '';
+  setTab('users');
+
+  const users = await api('GET', '/api/users');
+  const list  = document.getElementById('user-list');
+  list.innerHTML = '';
+
+  users.forEach(u => {
+    const btn = document.createElement('button');
+    btn.className = 'user-btn';
+    const icon = document.createElement('span');
+    icon.style.fontSize = '28px';
+    icon.textContent = '👤';
+    const name = document.createElement('span');
+    name.textContent = u.name;
+    btn.append(icon, name);
+    btn.onclick = () => selectUser(u.id, u.name);
+    list.appendChild(btn);
+  });
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'user-btn';
+  addBtn.innerHTML = `<span style="font-size:28px">➕</span><span>New user</span>`;
+  addBtn.onclick   = showNewUserForm;
+  list.appendChild(addBtn);
+}
+
+function showNewUserForm() {
+  hide('user-list');
+  show('new-user-form');
+  document.getElementById('name-input').focus();
+}
+
+function hideNewUserForm() {
+  show('user-list');
+  hide('new-user-form');
+}
+
+async function createUser() {
+  const name = document.getElementById('name-input').value.trim();
+  if (!name) return;
+  await api('POST', '/api/users/create', { name });
+  enterApp();
+}
+
+async function selectUser(id) {
+  await api('POST', '/api/users/select', { user_id: id });
+  enterApp();
+}
+
+function enterApp() {
+  document.getElementById('app').classList.remove('no-tabs');
+  document.getElementById('tab-bar').classList.remove('hidden');
+  showHome();
+}
+
+async function logout() {
+  await api('POST', '/api/logout');
+  document.getElementById('app').classList.add('no-tabs');
+  document.getElementById('tab-bar').classList.add('hidden');
+  await loadUserPicker();
+}
+
+function switchUser() { logout(); }
+
+// ── Home ──────────────────────────────────────────────────────────────────────
+async function showHome() {
+  setTab('home');
+  try {
+    const s = await api('GET', '/api/stats');
+    document.getElementById('home-username').textContent = `Hello, ${s.name || 'Learner'} 👋`;
+    document.getElementById('home-fraction').textContent = `${s.learned}/${s.total}`;
+    document.getElementById('home-prog').style.width = `${(s.learned / s.total * 100).toFixed(1)}%`;
+    document.getElementById('home-seen').textContent   = s.seen;
+    document.getElementById('home-streak').textContent = s.streak;
+    document.getElementById('home-due').textContent    = s.due > 0 ? `📅 ${s.due} due` : '';
+  } catch(e) { console.error(e); }
+}
+
+// ── Study ─────────────────────────────────────────────────────────────────────
+async function startStudy() {
+  setTab('study');
+  await loadStudyCard();
+}
+
+async function loadStudyCard() {
+  studyWord = await api('GET', '/api/study/next');
+  document.getElementById('study-char').textContent    = studyWord.simplified;
+  document.getElementById('study-pinyin').textContent  = studyWord.pinyin;
+  document.getElementById('study-meaning').textContent = studyWord.english;
+  document.getElementById('study-meaning').style.display = 'none';
+  document.getElementById('study-audio').classList.remove('playing');
+  document.getElementById('study-counter').textContent =
+    `${studyWord.seen_count} / ${studyWord.total} seen`;
+  show('study-pre');
+  hide('study-post');
+}
+
+function reveal() {
+  document.getElementById('study-meaning').style.display = '';
+  hide('study-pre');
+  show('study-post');
+}
+
+async function rate(quality) {
+  await api('POST', '/api/study/rate', { word_id: studyWord.word_id, quality });
+  await loadStudyCard();
+}
+
+async function skipStudy() { await loadStudyCard(); }
+
+// ── Quiz ──────────────────────────────────────────────────────────────────────
+async function startQuiz() {
+  setTab('quiz');
+  qCorrect = 0; qWrong = 0;
+  updateScore();
+  await loadQuizCard();
+}
+
+async function loadQuizCard() {
+  quizWord = await api('GET', '/api/quiz/next');
+
+  const qEl  = document.getElementById('quiz-question');
+  const pEl  = document.getElementById('quiz-pinyin');
+  const aBtn = document.getElementById('quiz-audio');
+
+  if (quizWord.direction === 'zh_to_en') {
+    qEl.style.fontSize = '56px';
+    qEl.textContent    = quizWord.simplified;
+    pEl.textContent    = quizWord.pinyin;
+    aBtn.style.display = 'flex';
+  } else {
+    qEl.style.fontSize = '22px';
+    qEl.textContent    = quizWord.english.split(';')[0].trim();
+    pEl.textContent    = '';
+    aBtn.style.display = 'none';
+  }
+
+  const box = document.getElementById('quiz-choices');
+  box.innerHTML = '';
+  quizWord.choices.forEach(c => {
+    const btn         = document.createElement('button');
+    btn.className     = 'choice-btn';
+    btn.dataset.value = c.text;
+
+    if (c.pinyin) {
+      const charSpan   = document.createElement('span');
+      charSpan.textContent = c.text;
+      const pinyinSpan = document.createElement('span');
+      pinyinSpan.className = 'choice-pinyin';
+      pinyinSpan.textContent = c.pinyin;
+      btn.append(charSpan, pinyinSpan);
+    } else {
+      btn.textContent = c.text;
+    }
+
+    btn.onclick = () => submitAnswer(c.text, btn);
+    box.appendChild(btn);
+  });
+
+  hide('quiz-feedback');
+  hide('next-btn');
+}
+
+async function submitAnswer(chosen, clickedBtn) {
+  document.querySelectorAll('.choice-btn').forEach(b => {
+    b.onclick = null;
+    if (b.dataset.value.trim().toLowerCase() === quizWord.correct.trim().toLowerCase())
+      b.classList.add('correct');
+  });
+
+  const isCorrect = chosen.trim().toLowerCase() === quizWord.correct.trim().toLowerCase();
+  if (!isCorrect) clickedBtn.classList.add('wrong');
+
+  const res = await api('POST', '/api/quiz/answer', {
+    word_id: quizWord.word_id, chosen, direction: quizWord.direction,
+  });
+
+  if (res.correct) qCorrect++; else qWrong++;
+  updateScore();
+
+  document.getElementById('quiz-verdict').textContent =
+    res.correct ? '✅ Correct!' : `❌ Wrong — correct was: ${quizWord.correct}`;
+  document.getElementById('quiz-verdict').style.color =
+    res.correct ? 'var(--green)' : 'var(--red)';
+  document.getElementById('fb-char').textContent    = quizWord.simplified;
+  document.getElementById('fb-pinyin').textContent  = quizWord.pinyin;
+  document.getElementById('fb-meaning').textContent = quizWord.english;
+
+  show('quiz-feedback');
+  show('next-btn');
+  playAudio(quizWord.word_id, 'fb-audio');
+}
+
+function updateScore() {
+  document.getElementById('quiz-score').innerHTML = `✅ ${qCorrect} &nbsp; ❌ ${qWrong}`;
+}
+
+async function nextQuiz() { await loadQuizCard(); }
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+async function showStats() {
+  setTab('stats');
+  try {
+    const [s, lb] = await Promise.all([
+      api('GET', '/api/stats'),
+      api('GET', '/api/leaderboard'),
+    ]);
+
+    const pct = n => `${(n / s.total * 100).toFixed(0)}%`;
+    document.getElementById('s-learned').textContent = `${s.learned}/${s.total}`;
+    document.getElementById('s-seen').textContent    = `${s.seen}/${s.total}`;
+    document.getElementById('s-learned-bar').style.width = pct(s.learned);
+    document.getElementById('s-seen-bar').style.width    = pct(s.seen);
+    document.getElementById('s-acc').textContent    = `${s.accuracy}%`;
+    document.getElementById('s-total').textContent  = s.total_correct + s.total_wrong;
+    document.getElementById('s-streak').textContent = `${s.streak} 🔥`;
+    document.getElementById('s-due').textContent    = s.due;
+
+    const medals = ['🥇','🥈','🥉'];
+    const list = document.getElementById('leaderboard-list');
+    list.innerHTML = '';
+    if (lb.length <= 1) {
+      list.innerHTML = '<p class="text-muted text-center" style="padding:8px">No other users yet</p>';
+    } else {
+      lb.forEach(r => {
+        const row = document.createElement('div');
+        row.className = 'lb-row' + (r.is_me ? ' me' : '');
+
+        const rank = document.createElement('span');
+        rank.className = 'lb-rank';
+        rank.textContent = medals[r.rank - 1] || r.rank;
+
+        const name = document.createElement('span');
+        name.className = 'lb-name';
+        name.textContent = r.name;
+        if (r.is_me) {
+          const you = document.createElement('span');
+          you.style.cssText = 'font-size:11px;color:var(--red);font-weight:400';
+          you.textContent = ' you';
+          name.appendChild(you);
+        }
+
+        const meta = document.createElement('span');
+        meta.className = 'lb-meta';
+        meta.append(`${r.learned}/150 words`, document.createElement('br'),
+                    `${r.accuracy}% acc · ${r.streak}🔥`);
+
+        row.append(rank, name, meta);
+        list.appendChild(row);
+      });
+    }
+  } catch(e) { console.error(e); }
+}
+
+async function confirmReset() {
+  if (!confirm('Reset all your progress? Cannot be undone.')) return;
+  await api('POST', '/api/reset');
+  await showStats();
+}
+
+async function deleteStep1() {
+  const me = await api('GET', '/api/me');
+  document.getElementById('delete-name').textContent = me.name ? `${me.name}'s` : 'your';
+  document.getElementById('delete-btn').style.display = 'none';
+  show('delete-confirm');
+}
+
+function deleteCancel() {
+  hide('delete-confirm');
+  show('delete-btn');
+}
+
+async function deleteConfirm() {
+  await api('POST', '/api/account/delete');
+  await loadUserPicker();
+}
+
+// ── Write ─────────────────────────────────────────────────────────────────────
+let writeWord    = null;
+let writeCtx     = null;
+let writeDrawing = false;
+let writeInited  = false;
+
+async function startWrite() {
+  setTab('write');
+  await loadWriteCard();
+}
+
+async function loadWriteCard() {
+  writeWord = await api('GET', '/api/study/next');
+  document.getElementById('write-prompt').textContent =
+    writeWord.english.split(';')[0].trim();
+  document.getElementById('write-pinyin').textContent  = writeWord.pinyin;
+  document.getElementById('write-counter').textContent =
+    `${writeWord.seen_count} / ${writeWord.total} seen`;
+  document.getElementById('write-overlay').classList.remove('visible');
+  document.getElementById('write-overlay').textContent = '';
+  show('write-reveal-btn');
+  show('write-pre');
+  hide('write-post');
+  requestAnimationFrame(() => {
+    if (!writeInited) { initWriteCanvas(); writeInited = true; }
+    else              { clearWriteCanvas(); }
+  });
+}
+
+function initWriteCanvas() {
+  const canvas = document.getElementById('write-canvas');
+  const dpr    = window.devicePixelRatio || 1;
+  const size   = canvas.offsetWidth;
+  canvas.width  = Math.round(size * dpr);
+  canvas.height = Math.round(size * dpr);
+  writeCtx = canvas.getContext('2d');
+  writeCtx.scale(dpr, dpr);
+  drawWriteGrid(size);
+
+  const pos = e => {
+    const r = canvas.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return { x: t.clientX - r.left, y: t.clientY - r.top };
+  };
+  const stroke = p => {
+    writeCtx.lineTo(p.x, p.y);
+    writeCtx.strokeStyle = '#1a1a1a';
+    writeCtx.lineWidth   = 4;
+    writeCtx.lineCap     = 'round';
+    writeCtx.lineJoin    = 'round';
+    writeCtx.stroke();
+    writeCtx.beginPath();
+    writeCtx.moveTo(p.x, p.y);
+  };
+  canvas.addEventListener('mousedown',  e => { writeDrawing = true; const p = pos(e); writeCtx.beginPath(); writeCtx.moveTo(p.x, p.y); });
+  canvas.addEventListener('mousemove',  e => { if (writeDrawing) stroke(pos(e)); });
+  canvas.addEventListener('mouseup',    () => writeDrawing = false);
+  canvas.addEventListener('mouseleave', () => writeDrawing = false);
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); writeDrawing = true; const p = pos(e); writeCtx.beginPath(); writeCtx.moveTo(p.x, p.y); }, { passive: false });
+  canvas.addEventListener('touchmove',  e => { e.preventDefault(); if (writeDrawing) stroke(pos(e)); }, { passive: false });
+  canvas.addEventListener('touchend',   () => writeDrawing = false);
+}
+
+function drawWriteGrid(size) {
+  writeCtx.fillStyle = '#fafafa';
+  writeCtx.fillRect(0, 0, size, size);
+  writeCtx.save();
+  writeCtx.strokeStyle = 'rgba(170,170,170,0.6)';
+  writeCtx.lineWidth   = 1;
+  writeCtx.setLineDash([5, 5]);
+  writeCtx.beginPath();
+  writeCtx.moveTo(size/2, 0);   writeCtx.lineTo(size/2, size);
+  writeCtx.moveTo(0, size/2);   writeCtx.lineTo(size, size/2);
+  writeCtx.moveTo(0, 0);        writeCtx.lineTo(size, size);
+  writeCtx.moveTo(size, 0);     writeCtx.lineTo(0, size);
+  writeCtx.stroke();
+  writeCtx.restore();
+  writeCtx.strokeStyle = 'rgba(150,150,150,0.5)';
+  writeCtx.lineWidth   = 1.5;
+  writeCtx.setLineDash([]);
+  writeCtx.strokeRect(1, 1, size - 2, size - 2);
+}
+
+function clearWriteCanvas() {
+  if (!writeCtx) return;
+  const canvas = document.getElementById('write-canvas');
+  drawWriteGrid(canvas.offsetWidth);
+}
+
+function revealChar() {
+  const overlay = document.getElementById('write-overlay');
+  overlay.textContent = writeWord.simplified;
+  overlay.classList.add('visible');
+  hide('write-reveal-btn');
+  hide('write-pre');
+  show('write-post');
+}
+
+async function rateWrite(quality) {
+  await api('POST', '/api/study/rate', { word_id: writeWord.word_id, quality });
+  await loadWriteCard();
+}
+
+// ── Match ─────────────────────────────────────────────────────────────────────
+let matchSel    = null;   // currently selected tile element
+let matchWrong  = null;   // Set of word_ids that had a wrong attempt this round
+let matchTotal  = 0;
+let matchDone   = 0;
+let matchLock   = false;
+
+function shuffled(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+async function startMatch() {
+  setTab('match');
+  hide('match-done');
+  show('match-cols');
+  const data = await api('GET', '/api/match/next');
+  matchSel   = null;
+  matchWrong = new Set();
+  matchTotal = data.pairs.length;
+  matchDone  = 0;
+  matchLock  = false;
+  updateMatchCounter();
+
+  const left  = document.getElementById('match-left');
+  const right = document.getElementById('match-right');
+  left.innerHTML = '';
+  right.innerHTML = '';
+
+  shuffled(data.pairs).forEach(p => left.appendChild(makeMatchTile(p, 'zh')));
+  shuffled(data.pairs).forEach(p => right.appendChild(makeMatchTile(p, 'en')));
+}
+
+function makeMatchTile(pair, side) {
+  const tile = document.createElement('button');
+  tile.className   = 'match-tile ' + side;
+  tile.dataset.wid = pair.word_id;
+  tile.dataset.side = side;
+  if (side === 'zh') {
+    tile.textContent = pair.simplified;
+  } else {
+    const py = document.createElement('span');
+    py.className = 'mt-pinyin';
+    py.textContent = pair.pinyin;
+    const en = document.createElement('span');
+    en.className = 'mt-english';
+    en.textContent = pair.english;
+    tile.append(py, en);
+  }
+  tile.onclick = () => onMatchTap(tile);
+  return tile;
+}
+
+function onMatchTap(tile) {
+  if (matchLock || tile.classList.contains('matched')) return;
+
+  if (!matchSel) { matchSel = tile; tile.classList.add('sel'); return; }
+  if (matchSel === tile) { tile.classList.remove('sel'); matchSel = null; return; }
+
+  // same side → just move the selection to the new tile
+  if (matchSel.dataset.side === tile.dataset.side) {
+    matchSel.classList.remove('sel');
+    matchSel = tile; tile.classList.add('sel');
+    return;
+  }
+
+  // one zh + one en → check the pair; server records the attempt
+  const wid = tile.dataset.wid;
+  const zhTile = tile.dataset.side === 'zh' ? tile : matchSel;
+  const pyTile = tile.dataset.side === 'zh' ? matchSel : tile;
+  api('POST', '/api/match/attempt', {
+    zh_word_id: Number(zhTile.dataset.wid),
+    py_word_id: Number(pyTile.dataset.wid),
+  }).catch(() => {});
+
+  if (matchSel.dataset.wid === wid) {
+    const first = matchSel;
+    first.classList.remove('sel');
+    first.classList.add('matched');
+    tile.classList.add('matched');
+    matchSel = null;
+    matchDone++;
+    updateMatchCounter();
+    playAudio(Number(wid), null);
+    if (matchDone === matchTotal) finishMatch();
+  } else {
+    matchWrong.add(wid);
+    matchWrong.add(matchSel.dataset.wid);
+    const first = matchSel;
+    matchSel = null;
+    matchLock = true;
+    first.classList.remove('sel');
+    first.classList.add('bad');
+    tile.classList.add('bad');
+    setTimeout(() => {
+      first.classList.remove('bad');
+      tile.classList.remove('bad');
+      matchLock = false;
+    }, 450);
+  }
+}
+
+function updateMatchCounter() {
+  document.getElementById('match-counter').textContent = `${matchDone} / ${matchTotal} matched`;
+}
+
+function finishMatch() {
+  setTimeout(() => {
+    hide('match-cols');
+    document.getElementById('match-summary').textContent =
+      matchWrong.size === 0
+        ? `Perfect — all ${matchTotal} on the first try! 🌟`
+        : `${matchTotal} pairs matched · ${matchWrong.size} needed a retry`;
+    show('match-done');
+  }, 350);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+(async () => {
+  try {
+    const me = await api('GET', '/api/me');
+    if (me.user_id && me.name) {
+      enterApp();
+    } else {
+      await loadUserPicker();
+    }
+  } catch(e) {
+    await loadUserPicker();
+  }
+})();
+</script>
+</body>
+</html>

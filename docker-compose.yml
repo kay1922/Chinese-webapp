@@ -1,0 +1,18 @@
+services:
+  bot:
+    build: .
+    container_name: chineesebot
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - default
+      - proxy
+
+networks:
+  proxy:
+    external: true
